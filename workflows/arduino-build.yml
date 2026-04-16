@@ -1,0 +1,50 @@
+name: Arduino Build CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    name: Compile Arduino Sketch (ATmega328P / Uno)
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Check out the repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Install AVR toolchain and Arduino core libraries
+      - name: Install AVR toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-avr avr-libc binutils-avr arduino-core
+
+      # 3. Compile Motor_control_sketch.ino
+      - name: Compile Motor_control_sketch
+        run: |
+          avr-gcc \
+            -mmcu=atmega328p \
+            -DF_CPU=16000000UL \
+            -DARDUINO=100 \
+            -Os \
+            -Wall \
+            -I/usr/share/arduino/hardware/arduino/avr/cores/arduino \
+            -I/usr/share/arduino/hardware/arduino/avr/variants/standard \
+            -o Motor_control_sketch.elf \
+            Motor_control_sketch.ino
+          avr-size Motor_control_sketch.elf
+
+      # 4. Generate .hex file (ready for flashing)
+      - name: Generate HEX file
+        run: |
+          avr-objcopy -O ihex Motor_control_sketch.elf Motor_control_sketch.hex
+
+      # 5. Upload HEX file as build artifact
+      - name: Upload HEX file
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-hex
+          path: Motor_control_sketch.hex
